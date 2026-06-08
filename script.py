@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 import openpyxl
@@ -145,8 +144,8 @@ def get_month_str_from_date_tai(dt_val):
     except:
         return ""
 
-def generate_tai_report():
-    print("Loading TAI datasets...")
+def generate_site_report():
+    print("Loading site datasets...")
     # Paths
     slots_path = os.path.join(workspace_dir, "Rubix.slot_requests.csv")
     assigns_path = os.path.join(workspace_dir, "Rubix.assignments.csv")
@@ -202,7 +201,7 @@ def generate_tai_report():
             assigns_grouped[sr_id_str].append(r_assign)
 
     # Reference time for active/in-progress slot age calculation
-    current_date_dt = pd.to_datetime("2026-05-26T08:17:38+05:30")
+    current_date_dt = pd.to_datetime(datetime.datetime.now().strftime("%Y-%m-%d") + "T08:17:38+05:30")
 
     print("Joining datasets and computing columns...")
     for idx, r_slot in slots.iterrows():
@@ -261,7 +260,7 @@ def generate_tai_report():
             row_data["Ageing"] = ageing
             
             # Today's date
-            row_data["Current date"] = "2026-05-26"
+            row_data["Current date"] = datetime.datetime.now().strftime("%Y-%m-%d")
             
             row_data["_createdAt"] = format_date_tai(r_slot.get("_createdAt"))
             row_data["_updatedAt"] = format_date_tai(r_slot.get("_updatedAt"))
@@ -607,93 +606,115 @@ def generate_tai_report():
 
     # Save to CSV using utf-8-sig (with BOM to match original exactly)
     output_csv = os.path.join(workspace_dir, "Master_Report.csv")
-    report_df.to_csv(output_csv, index=False, encoding="utf-8-sig")
-    print(f"Successfully generated TAI CSV report at: {output_csv}")
+    try:
+        report_df.to_csv(output_csv, index=False, encoding="utf-8-sig")
+        print(f"Successfully generated Site CSV report at: {output_csv}")
+    except PermissionError:
+        print(f"WARNING: Permission denied when saving Site CSV report to {output_csv}. File may be open in Excel.")
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_csv = os.path.join(workspace_dir, f"Master_Report_output_{ts}.csv")
+        try:
+            report_df.to_csv(output_csv, index=False, encoding="utf-8-sig")
+            print(f"Successfully generated fallback site CSV report at: {output_csv}")
+        except Exception as fallback_e:
+            print(f"Failed to save fallback Site CSV report: {fallback_e}")
 
     # Generate elegant Styled Excel report
     output_xlsx = os.path.join(workspace_dir, "Master_Report.xlsx")
     try:
-        import openpyxl
-        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
-        
-        with pd.ExcelWriter(output_xlsx, engine='openpyxl') as writer:
-            report_df.to_excel(writer, index=False, sheet_name="Assignments Report")
-            workbook = writer.book
-            worksheet = writer.sheets["Assignments Report"]
+        try:
+            import openpyxl
+            from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
             
-            # Stylish Navy header and elegant fonts
-            header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
-            header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid") # Classic Navy Blue
-            
-            center_align = Alignment(horizontal="center", vertical="center", wrap_text=False)
-            left_align = Alignment(horizontal="left", vertical="center", wrap_text=False)
-            
-            thin_border = Border(
-                left=Side(style='thin', color='D9D9D9'),
-                right=Side(style='thin', color='D9D9D9'),
-                top=Side(style='thin', color='D9D9D9'),
-                bottom=Side(style='thin', color='D9D9D9')
-            )
-            
-            zebra_fill = PatternFill(start_color="F2F6FA", end_color="F2F6FA", fill_type="solid") # Elegant light blue zebra tint
-            
-            # Style header row
-            worksheet.row_dimensions[1].height = 28
-            for col_idx, col_name in enumerate(cols_order, 1):
-                cell = worksheet.cell(row=1, column=col_idx)
-                cell.font = header_font
-                cell.fill = header_fill
-                cell.alignment = center_align
-                cell.border = thin_border
+            with pd.ExcelWriter(output_xlsx, engine='openpyxl') as writer:
+                report_df.to_excel(writer, index=False, sheet_name="Assignments Report")
+                workbook = writer.book
+                worksheet = writer.sheets["Assignments Report"]
                 
-            # Style data rows
-            for row_idx in range(2, worksheet.max_row + 1):
-                worksheet.row_dimensions[row_idx].height = 20
-                is_zebra = (row_idx % 2 == 0)
+                # Stylish Navy header and elegant fonts
+                header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+                header_fill = PatternFill(start_color="1F4E79", end_color="1F4E79", fill_type="solid") # Classic Navy Blue
                 
-                for col_idx in range(1, worksheet.max_column + 1):
-                    cell = worksheet.cell(row=row_idx, column=col_idx)
+                center_align = Alignment(horizontal="center", vertical="center", wrap_text=False)
+                left_align = Alignment(horizontal="left", vertical="center", wrap_text=False)
+                
+                thin_border = Border(
+                    left=Side(style='thin', color='D9D9D9'),
+                    right=Side(style='thin', color='D9D9D9'),
+                    top=Side(style='thin', color='D9D9D9'),
+                    bottom=Side(style='thin', color='D9D9D9')
+                )
+                
+                zebra_fill = PatternFill(start_color="F2F6FA", end_color="F2F6FA", fill_type="solid") # Elegant light blue zebra tint
+                
+                # Style header row
+                worksheet.row_dimensions[1].height = 28
+                for col_idx, col_name in enumerate(cols_order, 1):
+                    cell = worksheet.cell(row=1, column=col_idx)
+                    cell.font = header_font
+                    cell.fill = header_fill
+                    cell.alignment = center_align
                     cell.border = thin_border
-                    cell.font = Font(name="Segoe UI", size=10)
                     
-                    if is_zebra:
-                        cell.fill = zebra_fill
+                # Style data rows
+                for row_idx in range(2, worksheet.max_row + 1):
+                    worksheet.row_dimensions[row_idx].height = 20
+                    is_zebra = (row_idx % 2 == 0)
+                    
+                    for col_idx in range(1, worksheet.max_column + 1):
+                        cell = worksheet.cell(row=row_idx, column=col_idx)
+                        cell.border = thin_border
+                        cell.font = Font(name="Segoe UI", size=10)
                         
-                    # Custom alignments based on column types
-                    col_name = cols_order[col_idx - 1]
-                    if col_name in [
-                        "_id", "IDs", "Status", "Age - In days", "Ageing", "Current date",
-                        "_createdAt", "_updatedAt", "approvedAt", "Availability Start Year",
-                        "Availability End Year", "Availability Duration", "Availability[0].startDate",
-                        "Availability[0].endDate", "displayId", "SiteID", "Availability_Id",
-                        "SchoolId", "PrismSchool[0]", "Prism -School Yes or No", "RequestedSlots",
-                        "ApprovedSlots", "Graduation.date.year", "Graduation.date.month", "Graduation Month",
-                        "Rotation start Year", "Rotation End Year", "Rotation start Month", "Rotation End Month",
-                        "Graduation Concat", "Rotation Concat", "Student Year", "PlacementStartDate",
-                        "PlacementEndDate", "requestedStartdate", "requestedEndDate", "Compliant Status",
-                        "Confirmation Status", "GroupId", "location", "Location State", "AssigneId",
-                        "Assignee CreatedAt", "Scheduled Status", "displayIdAssignement", "AssignmentId",
-                        "StudentViewAssignment", "PayStatus", "Preceptor_Email", "Assignment Status",
-                        "Graduation"
-                    ]:
-                        cell.alignment = center_align
-                    else:
-                        cell.alignment = left_align
-                        
-            # Auto-fit column widths
-            for col in worksheet.columns:
-                max_len = 0
-                for cell in col:
-                    if cell.value:
-                        max_len = max(max_len, len(str(cell.value)))
-                col_letter = openpyxl.utils.get_column_letter(col[0].column)
-                worksheet.column_dimensions[col_letter].width = max(max_len + 4, 12)
-                
-        print(f"Successfully generated styled TAI Excel report at: {output_xlsx}")
-    except Exception as e:
-        print(f"Could not generate openpyxl styled TAI Excel: {e}. Saving default Excel...")
-        report_df.to_excel(output_xlsx, index=False)
-        print(f"Successfully generated standard TAI Excel report at: {output_xlsx}")
+                        if is_zebra:
+                            cell.fill = zebra_fill
+                            
+                        # Custom alignments based on column types
+                        col_name = cols_order[col_idx - 1]
+                        if col_name in [
+                            "_id", "IDs", "Status", "Age - In days", "Ageing", "Current date",
+                            "_createdAt", "_updatedAt", "approvedAt", "Availability Start Year",
+                            "Availability End Year", "Availability Duration", "Availability[0].startDate",
+                            "Availability[0].endDate", "displayId", "SiteID", "Availability_Id",
+                            "SchoolId", "PrismSchool[0]", "Prism -School Yes or No", "RequestedSlots",
+                            "ApprovedSlots", "Graduation.date.year", "Graduation.date.month", "Graduation Month",
+                            "Rotation start Year", "Rotation End Year", "Rotation start Month", "Rotation End Month",
+                            "Graduation Concat", "Rotation Concat", "Student Year", "PlacementStartDate",
+                            "PlacementEndDate", "requestedStartdate", "requestedEndDate", "Compliant Status",
+                            "Confirmation Status", "GroupId", "location", "Location State", "AssigneId",
+                            "Assignee CreatedAt", "Scheduled Status", "displayIdAssignement", "AssignmentId",
+                            "StudentViewAssignment", "PayStatus", "Preceptor_Email", "Assignment Status",
+                            "Graduation"
+                        ]:
+                            cell.alignment = center_align
+                        else:
+                            cell.alignment = left_align
+                            
+                # Auto-fit column widths
+                for col in worksheet.columns:
+                    max_len = 0
+                    for cell in col:
+                        if cell.value:
+                            max_len = max(max_len, len(str(cell.value)))
+                    col_letter = openpyxl.utils.get_column_letter(col[0].column)
+                    worksheet.column_dimensions[col_letter].width = max(max_len + 4, 12)
+                    
+            print(f"Successfully generated styled TAI Excel report at: {output_xlsx}")
+        except Exception as e:
+            if isinstance(e, PermissionError):
+                raise e
+            print(f"Could not generate openpyxl styled TAI Excel: {e}. Saving default Excel...")
+            report_df.to_excel(output_xlsx, index=False)
+            print(f"Successfully generated standard TAI Excel report at: {output_xlsx}")
+    except PermissionError:
+        print(f"WARNING: Permission denied when saving TAI Excel report to {output_xlsx}. File may be open in Excel.")
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_xlsx = os.path.join(workspace_dir, f"Master_Report_output_{ts}.xlsx")
+        try:
+            report_df.to_excel(output_xlsx, index=False)
+            print(f"Successfully generated standard fallback TAI Excel report at: {output_xlsx}")
+        except Exception as fallback_e:
+            print(f"Failed to save fallback TAI Excel report: {fallback_e}")
 
 
 def main():
@@ -882,7 +903,7 @@ def main():
     tenant_id = str(df_tenant["_id"].iloc[0]).strip() if not df_tenant.empty else ""
     tenant_name = str(df_tenant["name"].iloc[0]).strip() if not df_tenant.empty else ""
     report_records = []
-    report_date = datetime.datetime(2026, 5, 29)  # Stored in 'Current date' column + used for age calc
+    report_date = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)  # Stored in 'Current date' column + used for age calc
 
     # Pre-parse common date columns to optimize loop speed
     df_joined["created_dt"] = pd.to_datetime(df_joined["_createdAt_slot"]).dt.tz_localize(None)
@@ -1227,9 +1248,22 @@ def main():
     current_date_str = f"{now.day}{suffix} {now.strftime('%B %Y')}"
 
     # Save to copying template file
-    orig_report_path = os.path.join(workspace_dir, "template.xlsx")
-    if not os.path.exists(orig_report_path):
-        orig_report_path = os.path.join(workspace_dir, "H2 Health Report 29th May 2026.xlsx")
+    import glob
+    excel_files = glob.glob(os.path.join(workspace_dir, "*.xlsx"))
+    candidate_files = []
+    for f in excel_files:
+        basename = os.path.basename(f)
+        if basename.startswith("~$") or "work.xlsx" in basename.lower() or "master_report" in basename.lower() or (tenant_name in basename and current_date_str in basename):
+            continue
+        candidate_files.append(f)
+    
+    if candidate_files:
+        candidate_files.sort(key=os.path.getmtime, reverse=True)
+        orig_report_path = candidate_files[0]
+    else:
+        orig_report_path = os.path.join(workspace_dir, "template.xlsx")
+            
+    print(f"Selected template file: {orig_report_path}")
     out_report_path = os.path.join(workspace_dir, f"{tenant_name} Report {current_date_str}.xlsx")
 
     # Copy original to a temp working copy
@@ -1241,9 +1275,41 @@ def main():
     print("Opening working copy using openpyxl...")
     wb = openpyxl.load_workbook(temp_work_path, data_only=False)
 
-    # 1. Update Master Avail 29th may
-    print("Writing Master Avail 29th may sheet...")
-    ws_avail = wb["Master Avail 29th may"]
+    # Find active sheets referenced by the Pivot Tables
+    old_data_sheet = None
+    old_avail_sheet = None
+    
+    for sheetname in wb.sheetnames:
+        ws = wb[sheetname]
+        pivots = ws._pivots
+        if pivots:
+            for p in pivots:
+                if p.cache and p.cache.cacheSource and p.cache.cacheSource.worksheetSource:
+                    ws_src = p.cache.cacheSource.worksheetSource
+                    if ws_src.sheet.lower().startswith("master data") and not old_data_sheet:
+                        old_data_sheet = ws_src.sheet
+                    elif ws_src.sheet.lower().startswith("master avail") and not old_avail_sheet:
+                        old_avail_sheet = ws_src.sheet
+
+    if not old_data_sheet:
+        old_data_sheet = next((name for name in wb.sheetnames if name.lower().startswith("master data")), "Master Data 29th May")
+    if not old_avail_sheet:
+        old_avail_sheet = next((name for name in wb.sheetnames if name.lower().startswith("master avail")), "Master Avail 29th may")
+
+    # Rename them dynamically to current week
+    current_date_day_str = f"{now.day}{suffix} {now.strftime('%B')}"
+    new_data_sheet = f"Master Data {current_date_day_str}"
+    new_avail_sheet = f"Master Avail {current_date_day_str}"
+
+    print(f"Renaming template sheets: '{old_data_sheet}' -> '{new_data_sheet}', '{old_avail_sheet}' -> '{new_avail_sheet}'...")
+    if old_avail_sheet in wb.sheetnames:
+        wb[old_avail_sheet].title = new_avail_sheet
+    if old_data_sheet in wb.sheetnames:
+        wb[old_data_sheet].title = new_data_sheet
+
+    # 1. Update Master Avail
+    print(f"Writing to '{new_avail_sheet}'...")
+    ws_avail = wb[new_avail_sheet]
     
     # Clear existing rows (leaving headers)
     print(f"Clearing old rows in Master Avail (total rows: {ws_avail.max_row})...")
@@ -1255,9 +1321,9 @@ def main():
         for c_idx, val in enumerate(row_values, 1):
             ws_avail.cell(row=r_idx, column=c_idx).value = val
 
-    # 2. Update Master Data 29th May
-    print("Writing Master Data 29th May sheet...")
-    ws_data = wb["Master Data 29th May"]
+    # 2. Update Master Data
+    print(f"Writing to '{new_data_sheet}'...")
+    ws_data = wb[new_data_sheet]
     
     print(f"Clearing old rows in Master Data (total rows: {ws_data.max_row})...")
     for r in range(2, ws_data.max_row + 1):
@@ -1276,6 +1342,27 @@ def main():
                     ws_data.cell(row=r_idx, column=c_idx).value = None
                 else:
                     ws_data.cell(row=r_idx, column=c_idx).value = val
+
+    # 3. Update Pivot Table references and force refresh on load
+    print("Updating Pivot Table references and settings...")
+    max_row_data = len(df_master) + 1 # includes header
+    max_row_avail = len(df_ma) + 1 # includes header
+    
+    for sheetname in wb.sheetnames:
+        ws = wb[sheetname]
+        pivots = ws._pivots
+        if pivots:
+            for p in pivots:
+                if p.cache and p.cache.cacheSource and p.cache.cacheSource.worksheetSource:
+                    ws_src = p.cache.cacheSource.worksheetSource
+                    if ws_src.sheet == old_data_sheet:
+                        ws_src.sheet = new_data_sheet
+                        ws_src.ref = f"A1:BR{max_row_data}"
+                    elif ws_src.sheet == old_avail_sheet:
+                        ws_src.sheet = new_avail_sheet
+                        ws_src.ref = f"A1:R{max_row_avail}"
+                    
+                    p.cache.refreshOnLoad = True
 
     print("Saving the modified workbook back to temp location...")
     wb.save(temp_work_path)
@@ -1478,14 +1565,24 @@ def main():
 
     # Save to CSV
     csv_path = os.path.join(workspace_dir, "master_report.csv")
-    report_df.to_csv(csv_path, index=False, encoding="utf-8")
-    print(f"Successfully saved CSV report to: {csv_path}")
-
-    # Now execute the TAI report logic as integrated!
     try:
-        generate_tai_report()
+        report_df.to_csv(csv_path, index=False, encoding="utf-8")
+        print(f"Successfully saved CSV report to: {csv_path}")
+    except PermissionError:
+        print(f"WARNING: Permission denied when saving CSV report to {csv_path}. File may be open in Excel.")
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        fallback_csv_path = os.path.join(workspace_dir, f"master_report_output_{ts}.csv")
+        try:
+            report_df.to_csv(fallback_csv_path, index=False, encoding="utf-8")
+            print(f"Successfully saved fallback CSV report to: {fallback_csv_path}")
+        except Exception as fallback_e:
+            print(f"Failed to save fallback CSV report: {fallback_e}")
+
+    # Now execute the Site report logic as integrated!
+    try:
+        generate_site_report()
     except Exception as e:
-        print(f"Error during TAI report generation: {e}")
+        print(f"Error during Site report generation: {e}")
 
 
 
